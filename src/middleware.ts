@@ -1,5 +1,4 @@
 import { auth } from "@/lib/auth";
-import { isAdminEmail } from "@/lib/admin";
 import { NextResponse } from "next/server";
 
 export default auth((request) => {
@@ -19,13 +18,9 @@ export default auth((request) => {
     return NextResponse.redirect(loginUrl);
   }
 
-  if (pathname.startsWith("/admin") && !isAdminEmail(request.auth?.user?.email)) {
-    return NextResponse.redirect(new URL("/", request.url));
-  }
-
   return NextResponse.next();
 });
 
 export const config = {
-  matcher: ["/", "/admin/:path*", "/login", "/api/questions/:path*", "/api/submissions/:path*", "/api/settings"],
+  matcher: ["/", "/admin/:path*", "/login", "/api/questions/:path*", "/api/submissions/:path*", "/api/settings", "/api/admins"],
 };

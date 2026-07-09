@@ -53,3 +53,10 @@ model FormSettings {
   subtitle String
   updatedAt DateTime @updatedAt
 }
+
+model AdminUser {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  createdAt DateTime @default(now())
+  createdBy String?
+}

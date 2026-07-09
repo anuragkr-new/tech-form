@@ -3,7 +3,7 @@ import { isAdminEmail } from "@/lib/admin";
 import {
   getFormSettings,
 } from "@/lib/form-settings";
-import { prisma } from "@/lib/prisma";
+import { hasPrismaModel, prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
 export async function GET() {
@@ -18,7 +18,7 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   const session = await auth();
-  if (!session?.user?.email || !isAdminEmail(session.user.email)) {
+  if (!session?.user?.email || !(await isAdminEmail(session.user.email))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
@@ -33,7 +33,7 @@ export async function PUT(request: Request) {
     );
   }
 
-  if (!("formSettings" in prisma)) {
+  if (!hasPrismaModel("formSettings")) {
     return NextResponse.json(
       { error: "Form settings are not available yet. Restart the app after deploying the latest migration." },
       { status: 503 },

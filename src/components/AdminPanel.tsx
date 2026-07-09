@@ -1,12 +1,14 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { FormSettingsData, Question, Submission } from "@/types/form";
+import type { AdminUserRecord, FormSettingsData, Question, Submission } from "@/types/form";
 
 type AdminPanelProps = {
   initialQuestions: Question[];
   initialSubmissions: Submission[];
   initialSettings: FormSettingsData;
+  initialAdmins: AdminUserRecord[];
+  currentUserEmail: string;
 };
 
 type EditableOption = {
@@ -24,12 +26,42 @@ type EditableQuestion = {
   options: EditableOption[];
 };
 
+const PILL_ANSWER_KEYS = new Set(["team_name", "related_product", "when_needed"]);
+
+function getAnswerByKey(submission: Submission, questionKey: string) {
+  return submission.answers.find((answer) => answer.question.key === questionKey)?.value ?? "";
+}
+
+function SubmissionCell({
+  value,
+  questionKey,
+}: {
+  value: string;
+  questionKey: string;
+}) {
+  if (!value) {
+    return <span className="jas-admin-table-empty">—</span>;
+  }
+
+  if (PILL_ANSWER_KEYS.has(questionKey)) {
+    return <span className="jas-admin-pill">{value}</span>;
+  }
+
+  return (
+    <span className="jas-admin-table-cell-text" title={value}>
+      {value}
+    </span>
+  );
+}
+
 export function AdminPanel({
   initialQuestions,
   initialSubmissions,
   initialSettings,
+  initialAdmins,
+  currentUserEmail,
 }: AdminPanelProps) {
-  const [tab, setTab] = useState<"questions" | "submissions">("questions");
+  const [tab, setTab] = useState<"questions" | "submissions" | "admins">("questions");
   const [questions, setQuestions] = useState<EditableQuestion[]>(
     initialQuestions.map((question) => ({
       id: question.id,
@@ -51,10 +83,21 @@ export function AdminPanel({
   const [savingSettings, setSavingSettings] = useState(false);
   const [message, setMessage] = useState("");
   const [settingsMessage, setSettingsMessage] = useState("");
+  const [admins, setAdmins] = useState(initialAdmins);
+  const [newAdminEmail, setNewAdminEmail] = useState("");
+  const [addingAdmin, setAddingAdmin] = useState(false);
+  const [removingAdminId, setRemovingAdminId] = useState<string | null>(null);
+  const [adminsMessage, setAdminsMessage] = useState("");
+  const [downloadingCsv, setDownloadingCsv] = useState(false);
 
-  const questionLabels = useMemo(
-    () => new Map(questions.map((question) => [question.id, question.label])),
-    [questions],
+  const normalizedCurrentEmail = currentUserEmail.trim().toLowerCase();
+
+  const tableColumns = useMemo(
+    () =>
+      initialQuestions
+        .filter((question) => question.type !== "email")
+        .sort((a, b) => a.order - b.order),
+    [initialQuestions],
   );
 
   function updateQuestion(id: string, patch: Partial<EditableQuestion>) {
@@ -170,9 +213,97 @@ export function AdminPanel({
     }
   }
 
+  async function refreshAdmins() {
+    const response = await fetch("/api/admins");
+    const data = await response.json();
+    if (response.ok) {
+      setAdmins(data.admins);
+    }
+  }
+
+  async function addAdmin() {
+    setAddingAdmin(true);
+    setAdminsMessage("");
+
+    try {
+      const response = await fetch("/api/admins", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: newAdminEmail }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error ?? "Failed to add admin.");
+      }
+
+      setAdmins((current) => [...current, data.admin]);
+      setNewAdminEmail("");
+      setAdminsMessage(`${data.admin.email} added as admin.`);
+    } catch (error) {
+      setAdminsMessage(error instanceof Error ? error.message : "Failed to add admin.");
+    } finally {
+      setAddingAdmin(false);
+    }
+  }
+
+  async function downloadSubmissionsCsv() {
+    setDownloadingCsv(true);
+    setMessage("");
+
+    try {
+      const response = await fetch("/api/submissions/export");
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}));
+        throw new Error(data.error ?? "Failed to download CSV.");
+      }
+
+      const blob = await response.blob();
+      const disposition = response.headers.get("Content-Disposition") ?? "";
+      const filenameMatch = disposition.match(/filename="([^"]+)"/);
+      const filename = filenameMatch?.[1] ?? "jas-targets-submissions.csv";
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Failed to download CSV.");
+    } finally {
+      setDownloadingCsv(false);
+    }
+  }
+
+  async function removeAdmin(admin: AdminUserRecord) {
+    setRemovingAdminId(admin.id);
+    setAdminsMessage("");
+
+    try {
+      const response = await fetch(`/api/admins?id=${encodeURIComponent(admin.id)}`, {
+        method: "DELETE",
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error ?? "Failed to remove admin.");
+      }
+
+      setAdmins((current) => current.filter((item) => item.id !== admin.id));
+      setAdminsMessage(`${admin.email} removed from admins.`);
+    } catch (error) {
+      setAdminsMessage(error instanceof Error ? error.message : "Failed to remove admin.");
+    } finally {
+      setRemovingAdminId(null);
+    }
+  }
+
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap gap-2">
+    <div className="jas-card jas-admin-card">
+      <div className="jas-admin-tabs">
         <TabButton active={tab === "questions"} onClick={() => setTab("questions")}>
           Edit questions
         </TabButton>
@@ -185,75 +316,76 @@ export function AdminPanel({
         >
           View submissions ({submissions.length})
         </TabButton>
+        <TabButton
+          active={tab === "admins"}
+          onClick={() => {
+            setTab("admins");
+            void refreshAdmins();
+          }}
+        >
+          Manage admins ({admins.length})
+        </TabButton>
       </div>
 
-      {message && (
-        <p className="rounded-lg border border-border bg-surface px-4 py-3 text-sm text-muted">
-          {message}
-        </p>
-      )}
-
-      {settingsMessage && (
-        <p className="rounded-lg border border-border bg-surface px-4 py-3 text-sm text-muted">
-          {settingsMessage}
-        </p>
-      )}
+      {message && <p className="jas-admin-message">{message}</p>}
+      {settingsMessage && <p className="jas-admin-message">{settingsMessage}</p>}
+      {adminsMessage && <p className="jas-admin-message">{adminsMessage}</p>}
 
       {tab === "questions" && (
-        <div className="space-y-4">
-          <section className="rounded-2xl border border-border bg-surface p-5 sm:p-6">
-            <h2 className="text-lg font-semibold">Form header</h2>
-            <p className="mt-2 text-sm text-muted">
+        <>
+          <section className="jas-admin-block">
+            <h2 className="jas-admin-block-title">Form header</h2>
+            <p className="jas-admin-block-desc">
               Edit the title and subtitle shown at the top of the form. Use{" "}
-              <code className="rounded bg-background px-1.5 py-0.5 font-mono text-xs">
-                {"{email}"}
-              </code>{" "}
-              in the subtitle to insert the signed-in user&apos;s email.
+              <code>{"{email}"}</code> in the subtitle to insert the signed-in
+              user&apos;s email.
             </p>
 
-            <div className="mt-4 space-y-4">
-              <label className="block space-y-2">
-                <span className="text-sm font-medium">Title</span>
-                <input
-                  type="text"
-                  value={title}
-                  onChange={(event) => setTitle(event.target.value)}
-                  className="w-full rounded-lg border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
-                />
+            <div className="jas-admin-field">
+              <label className="jas-label" htmlFor="admin-form-title">
+                Title
               </label>
-
-              <label className="block space-y-2">
-                <span className="text-sm font-medium">Subtitle</span>
-                <textarea
-                  value={subtitle}
-                  onChange={(event) => setSubtitle(event.target.value)}
-                  rows={3}
-                  className="w-full rounded-lg border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
-                />
-              </label>
-
-              <button
-                type="button"
-                onClick={() => void saveSettings()}
-                disabled={savingSettings}
-                className="rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-accent-hover disabled:opacity-60"
-              >
-                {savingSettings ? "Saving..." : "Save header"}
-              </button>
+              <input
+                id="admin-form-title"
+                type="text"
+                value={title}
+                onChange={(event) => setTitle(event.target.value)}
+                className="jas-input"
+              />
             </div>
+
+            <div className="jas-admin-field">
+              <label className="jas-label" htmlFor="admin-form-subtitle">
+                Subtitle
+              </label>
+              <textarea
+                id="admin-form-subtitle"
+                value={subtitle}
+                onChange={(event) => setSubtitle(event.target.value)}
+                rows={3}
+                className="jas-textarea"
+                style={{ minHeight: "96px" }}
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={() => void saveSettings()}
+              disabled={savingSettings}
+              className="jas-admin-btn-primary"
+            >
+              {savingSettings ? "Saving..." : "Save header"}
+            </button>
           </section>
 
           {questions.map((question, index) => (
-            <div
-              key={question.id}
-              className="rounded-2xl border border-border bg-surface p-5 sm:p-6"
-            >
-              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+            <section key={question.id} className="jas-admin-block">
+              <div className="jas-admin-meta">
                 <div>
-                  <p className="text-xs uppercase tracking-wide text-muted">Question {index + 1}</p>
-                  <p className="font-mono text-xs text-accent">{question.key}</p>
+                  <p className="jas-admin-meta-label">Question {index + 1}</p>
+                  <p className="jas-admin-meta-key">{question.key}</p>
                 </div>
-                <label className="flex items-center gap-2 text-sm">
+                <label className="jas-admin-checkbox">
                   <input
                     type="checkbox"
                     checked={question.required}
@@ -261,38 +393,40 @@ export function AdminPanel({
                     onChange={(event) =>
                       updateQuestion(question.id, { required: event.target.checked })
                     }
-                    className="h-4 w-4 rounded border-border accent-accent"
                   />
                   Mandatory
                 </label>
               </div>
 
-              <label className="block space-y-2">
-                <span className="text-sm font-medium">Question text</span>
+              <div className="jas-admin-field">
+                <label className="jas-label" htmlFor={`question-${question.id}`}>
+                  Question text
+                </label>
                 <input
+                  id={`question-${question.id}`}
                   type="text"
                   value={question.label}
                   disabled={question.type === "email"}
                   onChange={(event) => updateQuestion(question.id, { label: event.target.value })}
-                  className="w-full rounded-lg border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent disabled:opacity-70"
+                  className="jas-input"
                 />
-              </label>
+              </div>
 
               {question.type === "select" && (
-                <div className="mt-4 space-y-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium">Options</span>
+                <div className="jas-admin-field">
+                  <div className="jas-admin-options-header">
+                    <span className="jas-admin-options-title">Options</span>
                     <button
                       type="button"
                       onClick={() => addOption(question.id)}
-                      className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium transition hover:border-accent"
+                      className="jas-admin-btn-secondary"
                     >
                       Add option
                     </button>
                   </div>
 
                   {question.options.map((option, optionIndex) => (
-                    <div key={option.id ?? `new-${optionIndex}`} className="flex gap-2">
+                    <div key={option.id ?? `new-${optionIndex}`} className="jas-admin-option-row">
                       <input
                         type="text"
                         value={option.label}
@@ -300,12 +434,12 @@ export function AdminPanel({
                           updateOption(question.id, optionIndex, event.target.value)
                         }
                         placeholder={`Option ${optionIndex + 1}`}
-                        className="flex-1 rounded-lg border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
+                        className="jas-input"
                       />
                       <button
                         type="button"
                         onClick={() => removeOption(question.id, optionIndex)}
-                        className="rounded-lg border border-red-500/30 px-3 py-2 text-xs text-red-300 transition hover:bg-red-500/10"
+                        className="jas-admin-btn-danger"
                       >
                         Remove
                       </button>
@@ -315,61 +449,165 @@ export function AdminPanel({
               )}
 
               {question.type === "email" && (
-                <p className="mt-3 text-xs text-muted">
+                <p className="jas-admin-hint">
                   Email is auto-filled from Google sign-in and is always mandatory.
                 </p>
               )}
-            </div>
+            </section>
           ))}
 
-          <button
-            type="button"
-            onClick={() => void saveQuestions()}
-            disabled={saving}
-            className="rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-accent-hover disabled:opacity-60"
-          >
-            {saving ? "Saving..." : "Save changes"}
-          </button>
-        </div>
+          <div className="jas-admin-actions">
+            <button
+              type="button"
+              onClick={() => void saveQuestions()}
+              disabled={saving}
+              className="jas-submit"
+              style={{ width: "auto", minWidth: "180px" }}
+            >
+              {saving ? "Saving..." : "Save changes"}
+            </button>
+          </div>
+        </>
       )}
 
       {tab === "submissions" && (
-        <div className="space-y-4">
-          {submissions.length === 0 ? (
-            <p className="rounded-2xl border border-border bg-surface p-8 text-center text-muted">
-              No submissions yet.
+        <>
+          <div className="jas-admin-submissions-toolbar">
+            <p className="jas-admin-block-desc" style={{ margin: 0 }}>
+              Export all submission data with every form column.
             </p>
-          ) : (
-            submissions.map((submission) => (
-              <div
-                key={submission.id}
-                className="rounded-2xl border border-border bg-surface p-5 sm:p-6"
-              >
-                <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
-                  <div>
-                    <p className="font-medium">{submission.email}</p>
-                    <p className="text-xs text-muted">
-                      {new Date(submission.createdAt).toLocaleString()}
-                    </p>
-                  </div>
-                </div>
+            <button
+              type="button"
+              onClick={() => void downloadSubmissionsCsv()}
+              disabled={downloadingCsv}
+              className="jas-admin-btn-primary"
+            >
+              {downloadingCsv ? "Preparing CSV..." : "Download CSV"}
+            </button>
+          </div>
 
-                <dl className="space-y-3">
-                  {submission.answers.map((answer) => (
-                    <div key={answer.id}>
-                      <dt className="text-xs uppercase tracking-wide text-muted">
-                        {answer.question.label || questionLabels.get(answer.question.id)}
-                      </dt>
-                      <dd className="mt-1 whitespace-pre-wrap text-sm">
-                        {answer.value || "—"}
-                      </dd>
-                    </div>
+          {submissions.length === 0 ? (
+            <p className="jas-admin-empty">No submissions yet.</p>
+          ) : (
+            <div className="jas-admin-table-wrap">
+              <table className="jas-admin-table">
+                <thead>
+                  <tr>
+                    <th>Submitted</th>
+                    <th>Email</th>
+                    {tableColumns.map((question) => (
+                      <th key={question.id}>{question.label}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {submissions.map((submission) => (
+                    <tr key={submission.id}>
+                      <td className="jas-admin-table-date">
+                        {new Date(submission.createdAt).toLocaleString()}
+                      </td>
+                      <td className="jas-admin-table-email">{submission.email}</td>
+                      {tableColumns.map((question) => (
+                        <td key={`${submission.id}-${question.id}`}>
+                          <SubmissionCell
+                            value={getAnswerByKey(submission, question.key)}
+                            questionKey={question.key}
+                          />
+                        </td>
+                      ))}
+                    </tr>
                   ))}
-                </dl>
-              </div>
-            ))
+                </tbody>
+              </table>
+            </div>
           )}
-        </div>
+        </>
+      )}
+
+      {tab === "admins" && (
+        <>
+          <section className="jas-admin-block">
+            <h2 className="jas-admin-block-title">Add admin</h2>
+            <p className="jas-admin-block-desc">
+              Grant admin access to another email. New admins can edit the form,
+              view submissions, and manage other admins.
+            </p>
+
+            <div className="jas-admin-add-admin">
+              <input
+                type="email"
+                value={newAdminEmail}
+                onChange={(event) => setNewAdminEmail(event.target.value)}
+                placeholder="colleague@company.com"
+                className="jas-input"
+              />
+              <button
+                type="button"
+                onClick={() => void addAdmin()}
+                disabled={addingAdmin || !newAdminEmail.trim()}
+                className="jas-admin-btn-primary"
+              >
+                {addingAdmin ? "Adding..." : "Add admin"}
+              </button>
+            </div>
+          </section>
+
+          <section className="jas-admin-block">
+            <h2 className="jas-admin-block-title">Current admins</h2>
+            {admins.length === 0 ? (
+              <p className="jas-admin-empty">No admins configured yet.</p>
+            ) : (
+              <div className="jas-admin-table-wrap">
+                <table className="jas-admin-table">
+                  <thead>
+                    <tr>
+                      <th>Email</th>
+                      <th>Added</th>
+                      <th>Added by</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {admins.map((admin) => {
+                      const isSelf = admin.email === normalizedCurrentEmail;
+                      const canRemove = !admin.protected && !isSelf;
+
+                      return (
+                        <tr key={admin.id}>
+                          <td className="jas-admin-table-email">
+                            {admin.email}
+                            {isSelf ? <span className="jas-admin-you-pill">You</span> : null}
+                            {admin.protected ? (
+                              <span className="jas-admin-protected-pill">Env protected</span>
+                            ) : null}
+                          </td>
+                          <td className="jas-admin-table-date">
+                            {new Date(admin.createdAt).toLocaleString()}
+                          </td>
+                          <td>{admin.createdBy ?? "—"}</td>
+                          <td>
+                            {canRemove ? (
+                              <button
+                                type="button"
+                                onClick={() => void removeAdmin(admin)}
+                                disabled={removingAdminId === admin.id}
+                                className="jas-admin-btn-danger"
+                              >
+                                {removingAdminId === admin.id ? "Removing..." : "Remove"}
+                              </button>
+                            ) : (
+                              <span className="jas-admin-table-empty">—</span>
+                            )}
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </section>
+        </>
       )}
     </div>
   );
@@ -388,11 +626,7 @@ function TabButton({
     <button
       type="button"
       onClick={onClick}
-      className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
-        active
-          ? "bg-accent text-white"
-          : "border border-border bg-surface text-muted hover:text-foreground"
-      }`}
+      className={`jas-admin-tab ${active ? "jas-admin-tab--active" : ""}`}
     >
       {children}
     </button>

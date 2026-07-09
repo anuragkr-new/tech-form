@@ -1,3 +1,4 @@
+import { getEnvAdminEmails } from "../src/lib/admin";
 import { PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
@@ -93,28 +94,27 @@ const questions = [
 
 async function main() {
   const existingCount = await prisma.question.count();
-  if (existingCount > 0) {
-    console.log("Questions already seeded, skipping.");
-    return;
-  }
-
-  for (const question of questions) {
-    await prisma.question.create({
-      data: {
-        key: question.key,
-        label: question.label,
-        type: question.type,
-        order: question.order,
-        required: question.required,
-        isSystem: question.isSystem,
-        options: {
-          create: question.options.map((label, index) => ({
-            label,
-            order: index,
-          })),
+  if (existingCount === 0) {
+    for (const question of questions) {
+      await prisma.question.create({
+        data: {
+          key: question.key,
+          label: question.label,
+          type: question.type,
+          order: question.order,
+          required: question.required,
+          isSystem: question.isSystem,
+          options: {
+            create: question.options.map((label, index) => ({
+              label,
+              order: index,
+            })),
+          },
         },
-      },
-    });
+      });
+    }
+  } else {
+    console.log("Questions already seeded, skipping.");
   }
 
   await prisma.formSettings.upsert({
@@ -126,6 +126,14 @@ async function main() {
     },
     update: {},
   });
+
+  for (const email of getEnvAdminEmails()) {
+    await prisma.adminUser.upsert({
+      where: { email },
+      create: { email },
+      update: {},
+    });
+  }
 }
 
 main()

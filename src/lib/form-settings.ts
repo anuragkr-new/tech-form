@@ -1,4 +1,4 @@
-import { prisma } from "@/lib/prisma";
+import { hasPrismaModel, prisma } from "@/lib/prisma";
 
 export const DEFAULT_FORM_TITLE = "JAS Targets Requirements";
 export const DEFAULT_FORM_SUBTITLE =
@@ -10,7 +10,7 @@ export type FormSettingsData = {
 };
 
 export async function getFormSettings(): Promise<FormSettingsData> {
-  if (!("formSettings" in prisma)) {
+  if (!hasPrismaModel("formSettings")) {
     return {
       title: DEFAULT_FORM_TITLE,
       subtitle: DEFAULT_FORM_SUBTITLE,

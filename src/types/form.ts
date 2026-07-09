@@ -20,6 +20,14 @@ export type FormSettingsData = {
   subtitle: string;
 };
 
+export type AdminUserRecord = {
+  id: string;
+  email: string;
+  createdAt: string;
+  createdBy: string | null;
+  protected: boolean;
+};
+
 export type Submission = {
   id: string;
   email: string;

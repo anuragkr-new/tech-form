@@ -22,7 +22,7 @@ export default async function HomePage() {
     getFormSettings(),
   ]);
 
-  const showAdminLink = isAdminEmail(session.user.email);
+  const showAdminLink = await isAdminEmail(session.user.email);
 
   return (
     <main className="jas-page">

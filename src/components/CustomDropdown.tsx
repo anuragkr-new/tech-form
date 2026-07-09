@@ -70,7 +70,8 @@ export function CustomDropdown({
                   key={option}
                   type="button"
                   className={`jas-dropdown-option ${option === value ? "jas-dropdown-option--selected" : ""}`}
-                  onClick={() => {
+                  onMouseDown={(event) => {
+                    event.preventDefault();
                     onChange(option);
                     onClose();
                   }}

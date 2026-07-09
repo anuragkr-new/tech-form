@@ -101,7 +101,8 @@ export default async function LoginPage({
                 </button>
               </form>
               <p className="mt-3 text-center text-xs text-body">
-                Use an email listed in <code>ADMIN_EMAILS</code> to access the admin panel.
+                Sign in with any email to submit the form. Admin access is granted by an existing
+                admin or via <code>ADMIN_EMAILS</code> in development.
               </p>
             </div>
           )}

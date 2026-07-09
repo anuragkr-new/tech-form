@@ -19,7 +19,7 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   const session = await auth();
-  if (!session?.user?.email || !isAdminEmail(session.user.email)) {
+  if (!session?.user?.email || !(await isAdminEmail(session.user.email))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

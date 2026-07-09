@@ -1,20 +1,43 @@
 import { PrismaClient } from "@prisma/client";
 
-const globalForPrisma = globalThis as unknown as { prisma: PrismaClient | undefined };
+const PRISMA_SCHEMA_VERSION = 2;
+
+const globalForPrisma = globalThis as unknown as {
+  prisma: PrismaClient | undefined;
+  prismaSchemaVersion?: number;
+};
+
+function hasExpectedModels(client: PrismaClient) {
+  return "question" in client && "formSettings" in client && "adminUser" in client;
+}
 
 function createPrismaClient() {
   return new PrismaClient();
 }
 
-let prismaInstance = globalForPrisma.prisma ?? createPrismaClient();
+function getPrismaClient() {
+  const cached = globalForPrisma.prisma;
 
-// Recreate client after schema changes (common in local dev hot reload).
-if (!("formSettings" in prismaInstance)) {
-  prismaInstance = createPrismaClient();
+  if (
+    cached &&
+    globalForPrisma.prismaSchemaVersion === PRISMA_SCHEMA_VERSION &&
+    hasExpectedModels(cached)
+  ) {
+    return cached;
+  }
+
+  const client = createPrismaClient();
+
+  if (process.env.NODE_ENV !== "production") {
+    globalForPrisma.prisma = client;
+    globalForPrisma.prismaSchemaVersion = PRISMA_SCHEMA_VERSION;
+  }
+
+  return client;
 }
 
-export const prisma = prismaInstance;
+export const prisma = getPrismaClient();
 
-if (process.env.NODE_ENV !== "production") {
-  globalForPrisma.prisma = prisma;
+export function hasPrismaModel(model: "formSettings" | "adminUser") {
+  return model in prisma;
 }

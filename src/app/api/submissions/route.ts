@@ -10,7 +10,7 @@ type AnswerInput = {
 
 export async function GET() {
   const session = await auth();
-  if (!session?.user?.email || !isAdminEmail(session.user.email)) {
+  if (!session?.user?.email || !(await isAdminEmail(session.user.email))) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 

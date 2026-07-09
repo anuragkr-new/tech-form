@@ -1,10 +1,11 @@
 import { AdminPanel } from "@/components/AdminPanel";
 import { auth } from "@/lib/auth";
-import { isAdminEmail } from "@/lib/admin";
+import { getAdminUsers, isAdminEmail } from "@/lib/admin";
 import { getFormSettings } from "@/lib/form-settings";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import "@/styles/jas-form.css";
 
 export default async function AdminPage() {
   const session = await auth();
@@ -12,11 +13,11 @@ export default async function AdminPage() {
     redirect("/login");
   }
 
-  if (!isAdminEmail(session.user.email)) {
+  if (!session?.user?.email || !(await isAdminEmail(session.user.email))) {
     redirect("/");
   }
 
-  const [questions, submissions, settings] = await Promise.all([
+  const [questions, submissions, settings, admins] = await Promise.all([
     prisma.question.findMany({
       orderBy: { order: "asc" },
       include: { options: { orderBy: { order: "asc" } } },
@@ -30,30 +31,27 @@ export default async function AdminPage() {
       },
     }),
     getFormSettings(),
+    getAdminUsers(),
   ]);
 
   return (
-    <main className="min-h-screen px-6 py-12">
-      <div className="mx-auto max-w-4xl">
-        <header className="mb-8 flex flex-wrap items-start justify-between gap-4">
-          <div>
-            <p className="font-mono text-sm uppercase tracking-widest text-accent">Admin</p>
-            <h1 className="mt-2 text-3xl font-bold tracking-tight">Form configuration</h1>
-            <p className="mt-3 text-muted">
-              Edit question text, manage dropdown options, and mark fields as mandatory.
-            </p>
-          </div>
-          <Link
-            href="/"
-            className="rounded-lg border border-border px-4 py-2 text-sm font-medium transition hover:border-accent"
-          >
-            Back to form
-          </Link>
-        </header>
+    <main className="jas-page">
+      <div className="jas-container">
+        <p className="jas-eyebrow">ADMIN</p>
+        <h1 className="jas-title">Form configuration</h1>
+        <p className="jas-subtitle">
+          Edit the form header, question text, dropdown options, and mandatory fields.
+        </p>
+
+        <Link href="/" className="jas-admin-link jas-admin-back-link">
+          Back to form
+        </Link>
 
         <AdminPanel
+          currentUserEmail={session.user.email}
           initialQuestions={questions}
           initialSettings={settings}
+          initialAdmins={admins}
           initialSubmissions={submissions.map((submission) => ({
             id: submission.id,
             email: submission.email,
