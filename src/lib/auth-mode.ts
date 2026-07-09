@@ -58,12 +58,15 @@ export function getOAuthErrorMessage(error?: string): string | null {
       return "Google OAuth is misconfigured. Check AUTH_GOOGLE_ID and AUTH_GOOGLE_SECRET in .env, then restart the server.";
     case "OAuthSignin":
     case "OAuthCallback":
-      return "Google sign-in failed. Confirm the redirect URI in Google Cloud Console matches exactly.";
+      return "Google sign-in failed. Add the exact redirect URI shown below to Google Cloud Console.";
     case "AccessDenied":
       return "Access denied. If the app is in Testing mode, add your Google email as a test user in Google Cloud Console.";
     case "Callback":
       return "OAuth callback failed. Verify AUTH_SECRET is set and restart npm run dev.";
     default:
+      if (error.toLowerCase().includes("redirect")) {
+        return "Redirect URI mismatch. Add the exact redirect URI shown below to Google Cloud Console.";
+      }
       return `Sign-in failed (${error}). Check your Google OAuth setup and .env values.`;
   }
 }

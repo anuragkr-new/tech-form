@@ -17,7 +17,7 @@ export default async function LoginPage({
   const devLoginEnabled = isDevLoginEnabled();
   const setup = getAuthSetupStatus();
   const errorMessage = getOAuthErrorMessage(params.error);
-  const showSetupHelp = process.env.NODE_ENV === "development";
+  const showSetupHelp = process.env.NODE_ENV === "development" || !!params.error;
 
   if (session?.user?.email) {
     return null;
