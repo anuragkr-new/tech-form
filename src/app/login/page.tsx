@@ -26,23 +26,23 @@ export default async function LoginPage({
   return (
     <main className="flex min-h-screen items-center justify-center px-6 py-10">
       <div className="w-full max-w-md space-y-4">
-        <div className="rounded-2xl border border-border bg-surface p-8">
+        <div className="rounded-[20px] border border-card-border bg-card-bg p-8 shadow-[0_1px_3px_rgba(20,20,30,0.05)]">
           <div className="text-center">
-            <p className="font-mono text-sm uppercase tracking-widest text-accent">Tech Form</p>
-            <h1 className="mt-2 text-2xl font-bold">JAS Targets Intake</h1>
-            <p className="mt-3 text-sm text-muted">
+            <p className="text-xs font-bold uppercase tracking-[0.14em] text-accent">Tech Form</p>
+            <h1 className="mt-2 text-2xl font-extrabold text-heading">JAS Targets Intake</h1>
+            <p className="mt-3 text-sm text-body">
               Sign in to submit or manage form requests.
             </p>
           </div>
 
           {errorMessage && (
-            <p className="mt-4 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
+            <p className="mt-4 rounded-lg border border-error/30 bg-red-50 px-4 py-3 text-sm font-medium text-error">
               {errorMessage}
             </p>
           )}
 
           {!googleEnabled && !devLoginEnabled && (
-            <p className="mt-4 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+            <p className="mt-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
               Auth is not configured. Add Google OAuth credentials to <code>.env</code> or enable{" "}
               <code>DEV_LOGIN=true</code> for local development.
             </p>
@@ -67,8 +67,8 @@ export default async function LoginPage({
           )}
 
           {devLoginEnabled && (
-            <div className={googleEnabled ? "mt-6 border-t border-border pt-6" : "mt-6"}>
-              <p className="mb-3 text-center text-xs text-muted">
+            <div className={googleEnabled ? "mt-6 border-t border-field-border pt-6" : "mt-6"}>
+              <p className="mb-3 text-center text-xs text-body">
                 {googleEnabled
                   ? "Or use local dev login"
                   : "Local dev login (Google OAuth not configured yet)"}
@@ -91,7 +91,7 @@ export default async function LoginPage({
                   type="email"
                   required
                   placeholder="you@company.com"
-                  className="w-full rounded-lg border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
+                  className="w-full rounded-lg border border-field-border bg-card-bg px-3.5 py-2.5 text-sm outline-none focus:border-accent"
                 />
                 <button
                   type="submit"
@@ -100,7 +100,7 @@ export default async function LoginPage({
                   Continue with email (dev)
                 </button>
               </form>
-              <p className="mt-3 text-center text-xs text-muted">
+              <p className="mt-3 text-center text-xs text-body">
                 Use an email listed in <code>ADMIN_EMAILS</code> to access the admin panel.
               </p>
             </div>
@@ -108,12 +108,12 @@ export default async function LoginPage({
         </div>
 
         {showSetupHelp && (
-          <div className="rounded-2xl border border-border bg-surface p-5 text-sm">
-            <p className="font-medium">Google OAuth setup checklist</p>
-            <ul className="mt-3 space-y-2 text-xs text-muted">
+          <div className="rounded-[20px] border border-card-border bg-card-bg p-5 text-sm shadow-[0_1px_3px_rgba(20,20,30,0.05)]">
+            <p className="font-semibold text-heading">Google OAuth setup checklist</p>
+            <ul className="mt-3 space-y-2 text-xs text-body">
               <li>
                 Redirect URI to add in Google Cloud Console:
-                <code className="mt-1 block break-all rounded bg-background px-2 py-1 text-foreground">
+                <code className="mt-1 block break-all rounded bg-readonly-bg px-2 py-1 text-heading">
                   {setup.redirectUri}
                 </code>
               </li>
@@ -121,8 +121,8 @@ export default async function LoginPage({
               <li>Google configured: {setup.googleConfigured ? "Yes" : "No"}</li>
             </ul>
             {setup.issues.length > 0 && (
-              <div className="mt-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
-                <p className="font-medium">Fix these in `.env`:</p>
+              <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+                <p className="font-semibold">Fix these in `.env`:</p>
                 <ul className="mt-2 list-disc space-y-1 pl-4">
                   {setup.issues.map((issue) => (
                     <li key={issue}>{issue}</li>
