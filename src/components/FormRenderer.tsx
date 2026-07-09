@@ -4,6 +4,7 @@ import { FormEvent, useState } from "react";
 import { BubbleSelect } from "@/components/BubbleSelect";
 import { CustomDropdown } from "@/components/CustomDropdown";
 import type { Question } from "@/types/form";
+import "@/styles/jas-form.css";
 
 const BUBBLE_KEYS = new Set(["team_name", "related_product"]);
 const DROPDOWN_KEYS = new Set(["target_goal", "when_needed"]);
@@ -23,7 +24,10 @@ type FormRendererProps = {
 };
 
 function usesBubbles(question: Question) {
-  return BUBBLE_KEYS.has(question.key) || (question.type === "select" && question.options.length <= 4 && !DROPDOWN_KEYS.has(question.key));
+  return (
+    BUBBLE_KEYS.has(question.key) ||
+    (question.type === "select" && question.options.length <= 4 && !DROPDOWN_KEYS.has(question.key))
+  );
 }
 
 function usesDropdown(question: Question) {
@@ -104,8 +108,8 @@ export function FormRenderer({ questions, userEmail, onSubmit }: FormRendererPro
 
   if (submitted) {
     return (
-      <div className="rounded-[20px] border border-card-border bg-card-bg px-9 py-14 text-center shadow-[0_1px_3px_rgba(20,20,30,0.05)]">
-        <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-full bg-accent">
+      <div className="jas-success">
+        <div className="jas-success-icon">
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" aria-hidden="true">
             <path
               d="M6 12.5L10 16.5L18 8.5"
@@ -116,49 +120,47 @@ export function FormRenderer({ questions, userEmail, onSubmit }: FormRendererPro
             />
           </svg>
         </div>
-        <h2 className="text-[20px] font-bold text-heading">Request submitted</h2>
-        <p className="mx-auto mt-2 max-w-sm text-[15px] text-body">
+        <h2 className="jas-success-title">Request submitted</h2>
+        <p className="jas-success-text">
           Thanks — your requirement has been logged for the JAS Targets team.
         </p>
-        <button
-          type="button"
-          onClick={resetForm}
-          className="mt-8 rounded-lg bg-accent px-6 py-3 text-[15px] font-semibold text-white transition hover:bg-accent-hover"
-        >
+        <button type="button" onClick={resetForm} className="jas-success-btn">
           Submit another request
         </button>
       </div>
     );
   }
 
-  const inputBase =
-    "w-full rounded-2xl border bg-card-bg px-4 py-3.5 text-[15px] text-heading outline-none transition placeholder:text-placeholder focus:border-accent";
+  const lastQuestionId = questions[questions.length - 1]?.id;
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="space-y-7 rounded-[20px] border border-card-border bg-card-bg p-9 shadow-[0_1px_3px_rgba(20,20,30,0.05)]"
-      noValidate
-    >
+    <form onSubmit={handleSubmit} className="jas-card" noValidate>
       {questions.map((question) => {
         const hasError = !!fieldErrors[question.id];
         const optionLabels = question.options.map((option) => option.label);
+        const isBubble = question.type === "select" && usesBubbles(question);
+        const isLast = question.id === lastQuestionId;
 
         return (
-          <Field
+          <div
             key={question.id}
-            label={question.label}
-            htmlFor={question.id}
-            required={question.required}
-            error={fieldErrors[question.id]}
+            className={`jas-field ${isLast ? "jas-field--last" : ""}`}
           >
+            <label
+              htmlFor={question.id}
+              className={`jas-label ${isBubble ? "jas-label--bubble" : ""}`}
+            >
+              {question.label}
+              {question.required && <span className="jas-required"> *</span>}
+            </label>
+
             {question.type === "email" && (
               <input
                 id={question.id}
                 type="email"
                 value={userEmail}
                 readOnly
-                className={`${inputBase} cursor-not-allowed border-field-border bg-readonly-bg text-body`}
+                className="jas-input-email"
               />
             )}
 
@@ -168,7 +170,7 @@ export function FormRenderer({ questions, userEmail, onSubmit }: FormRendererPro
                 type="text"
                 value={values[question.id] ?? ""}
                 onChange={(event) => updateValue(question.id, event.target.value)}
-                className={`${inputBase} ${hasError ? "border-error" : "border-field-border"}`}
+                className={`jas-input ${hasError ? "jas-input--error" : ""}`}
               />
             )}
 
@@ -178,7 +180,7 @@ export function FormRenderer({ questions, userEmail, onSubmit }: FormRendererPro
                 rows={7}
                 value={values[question.id] ?? ""}
                 onChange={(event) => updateValue(question.id, event.target.value)}
-                className={`${inputBase} resize-y ${hasError ? "border-error" : "border-field-border"}`}
+                className={`jas-textarea ${hasError ? "jas-textarea--error" : ""}`}
               />
             )}
 
@@ -204,50 +206,17 @@ export function FormRenderer({ questions, userEmail, onSubmit }: FormRendererPro
                 onClose={() => setOpenDropdownId(null)}
               />
             )}
-          </Field>
+
+            {hasError && <p className="jas-error">{fieldErrors[question.id]}</p>}
+          </div>
         );
       })}
 
-      {submitError && (
-        <p className="rounded-lg border border-error/30 bg-red-50 px-4 py-3 text-sm font-semibold text-error">
-          {submitError}
-        </p>
-      )}
+      {submitError && <p className="jas-submit-error">{submitError}</p>}
 
-      <button
-        type="submit"
-        disabled={submitting}
-        className="w-full rounded-lg bg-accent py-3.5 text-[15px] font-bold text-white transition hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-60"
-      >
+      <button type="submit" disabled={submitting} className="jas-submit">
         {submitting ? "Submitting..." : "Submit request"}
       </button>
     </form>
-  );
-}
-
-function Field({
-  label,
-  htmlFor,
-  required,
-  error,
-  children,
-}: {
-  label: string;
-  htmlFor: string;
-  required: boolean;
-  error?: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <div className="space-y-2.5">
-      <label htmlFor={htmlFor} className="block text-[15px] font-semibold text-heading">
-        {label}
-        {required && <span className="text-accent"> *</span>}
-      </label>
-      {children}
-      {error && (
-        <p className="text-xs font-bold text-error">{error}</p>
-      )}
-    </div>
   );
 }

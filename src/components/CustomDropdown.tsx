@@ -42,63 +42,43 @@ export function CustomDropdown({
 
   return (
     <>
-      {isOpen && (
-        <div className="fixed inset-0 z-40" aria-hidden="true" onClick={onClose} />
-      )}
+      {isOpen && <div className="jas-dropdown-overlay" aria-hidden="true" onClick={onClose} />}
       <div
         ref={containerRef}
         id={id}
-        className={`relative z-50 overflow-hidden rounded-2xl border bg-card-bg transition ${
-          hasError
-            ? "border-error"
-            : isOpen
-              ? "border-accent shadow-[0_4px_12px_rgba(59,111,240,0.12)]"
-              : "border-field-border"
-        }`}
+        className={`jas-dropdown ${isOpen ? "jas-dropdown--open" : ""} ${hasError ? "jas-dropdown--error" : ""}`}
       >
         <button
           type="button"
+          className="jas-dropdown-trigger"
           onClick={() => (isOpen ? onClose() : onOpen())}
-          className="flex w-full items-center justify-between px-4 py-3.5 text-left text-[15px]"
         >
-          <span className={value ? "font-medium text-heading" : "text-placeholder"}>
+          <span
+            className={`jas-dropdown-value ${value ? "" : "jas-dropdown-value--placeholder"}`}
+          >
             {value || placeholder}
           </span>
-          <span
-            className={`ml-3 text-placeholder transition-transform duration-200 ${
-              isOpen ? "rotate-180" : ""
-            }`}
-          >
-            ⌄
-          </span>
+          <span className="jas-dropdown-chevron">⌄</span>
         </button>
 
         {isOpen && (
           <>
-            <div className="border-t-2 border-accent" />
-            <ul className="py-1.5">
-              {options.map((option) => {
-                const selected = option === value;
-                return (
-                  <li key={option}>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onChange(option);
-                        onClose();
-                      }}
-                      className={`mx-2 my-1.5 block w-[calc(100%-16px)] rounded-[10px] px-4 py-3 text-left text-[15px] transition ${
-                        selected
-                          ? "bg-readonly-bg font-medium text-heading"
-                          : "text-heading hover:bg-readonly-bg/70"
-                      }`}
-                    >
-                      {option}
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
+            <div className="jas-dropdown-divider" />
+            <div className="jas-dropdown-options">
+              {options.map((option) => (
+                <button
+                  key={option}
+                  type="button"
+                  className={`jas-dropdown-option ${option === value ? "jas-dropdown-option--selected" : ""}`}
+                  onClick={() => {
+                    onChange(option);
+                    onClose();
+                  }}
+                >
+                  {option}
+                </button>
+              ))}
+            </div>
           </>
         )}
       </div>
