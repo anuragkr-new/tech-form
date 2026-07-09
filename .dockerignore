@@ -1,0 +1,10 @@
+node_modules
+.next
+.env
+.env.*
+!.env.example
+.DS_Store
+npm-debug.log*
+prisma/dev.db
+prisma/dev.db-journal
+.git
