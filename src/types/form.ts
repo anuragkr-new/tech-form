@@ -15,6 +15,11 @@ export type Question = {
   options: QuestionOption[];
 };
 
+export type FormSettingsData = {
+  title: string;
+  subtitle: string;
+};
+
 export type Submission = {
   id: string;
   email: string;

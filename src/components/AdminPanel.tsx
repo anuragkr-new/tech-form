@@ -1,11 +1,12 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { Question, Submission } from "@/types/form";
+import type { FormSettingsData, Question, Submission } from "@/types/form";
 
 type AdminPanelProps = {
   initialQuestions: Question[];
   initialSubmissions: Submission[];
+  initialSettings: FormSettingsData;
 };
 
 type EditableOption = {
@@ -23,7 +24,11 @@ type EditableQuestion = {
   options: EditableOption[];
 };
 
-export function AdminPanel({ initialQuestions, initialSubmissions }: AdminPanelProps) {
+export function AdminPanel({
+  initialQuestions,
+  initialSubmissions,
+  initialSettings,
+}: AdminPanelProps) {
   const [tab, setTab] = useState<"questions" | "submissions">("questions");
   const [questions, setQuestions] = useState<EditableQuestion[]>(
     initialQuestions.map((question) => ({
@@ -40,8 +45,12 @@ export function AdminPanel({ initialQuestions, initialSubmissions }: AdminPanelP
     })),
   );
   const [submissions, setSubmissions] = useState(initialSubmissions);
+  const [title, setTitle] = useState(initialSettings.title);
+  const [subtitle, setSubtitle] = useState(initialSettings.subtitle);
   const [saving, setSaving] = useState(false);
+  const [savingSettings, setSavingSettings] = useState(false);
   const [message, setMessage] = useState("");
+  const [settingsMessage, setSettingsMessage] = useState("");
 
   const questionLabels = useMemo(
     () => new Map(questions.map((question) => [question.id, question.label])),
@@ -85,6 +94,34 @@ export function AdminPanel({ initialQuestions, initialSubmissions }: AdminPanelP
         };
       }),
     );
+  }
+
+  async function saveSettings() {
+    setSavingSettings(true);
+    setSettingsMessage("");
+
+    try {
+      const response = await fetch("/api/settings", {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title, subtitle }),
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error ?? "Failed to save form header.");
+      }
+
+      setTitle(data.settings.title);
+      setSubtitle(data.settings.subtitle);
+      setSettingsMessage("Form header saved successfully.");
+    } catch (error) {
+      setSettingsMessage(
+        error instanceof Error ? error.message : "Failed to save form header.",
+      );
+    } finally {
+      setSavingSettings(false);
+    }
   }
 
   async function saveQuestions() {
@@ -156,8 +193,56 @@ export function AdminPanel({ initialQuestions, initialSubmissions }: AdminPanelP
         </p>
       )}
 
+      {settingsMessage && (
+        <p className="rounded-lg border border-border bg-surface px-4 py-3 text-sm text-muted">
+          {settingsMessage}
+        </p>
+      )}
+
       {tab === "questions" && (
         <div className="space-y-4">
+          <section className="rounded-2xl border border-border bg-surface p-5 sm:p-6">
+            <h2 className="text-lg font-semibold">Form header</h2>
+            <p className="mt-2 text-sm text-muted">
+              Edit the title and subtitle shown at the top of the form. Use{" "}
+              <code className="rounded bg-background px-1.5 py-0.5 font-mono text-xs">
+                {"{email}"}
+              </code>{" "}
+              in the subtitle to insert the signed-in user&apos;s email.
+            </p>
+
+            <div className="mt-4 space-y-4">
+              <label className="block space-y-2">
+                <span className="text-sm font-medium">Title</span>
+                <input
+                  type="text"
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                  className="w-full rounded-lg border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
+                />
+              </label>
+
+              <label className="block space-y-2">
+                <span className="text-sm font-medium">Subtitle</span>
+                <textarea
+                  value={subtitle}
+                  onChange={(event) => setSubtitle(event.target.value)}
+                  rows={3}
+                  className="w-full rounded-lg border border-border bg-background px-3.5 py-2.5 text-sm outline-none focus:border-accent"
+                />
+              </label>
+
+              <button
+                type="button"
+                onClick={() => void saveSettings()}
+                disabled={savingSettings}
+                className="rounded-lg bg-accent px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-accent-hover disabled:opacity-60"
+              >
+                {savingSettings ? "Saving..." : "Save header"}
+              </button>
+            </div>
+          </section>
+
           {questions.map((question, index) => (
             <div
               key={question.id}

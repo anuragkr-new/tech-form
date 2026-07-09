@@ -46,3 +46,10 @@ model Answer {
 
   @@unique([submissionId, questionId])
 }
+
+model FormSettings {
+  id       String @id @default("default")
+  title    String
+  subtitle String
+  updatedAt DateTime @updatedAt
+}

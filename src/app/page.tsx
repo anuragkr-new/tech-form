@@ -1,6 +1,8 @@
 import { FormPage } from "@/components/FormPage";
+import { FormSubtitle } from "@/components/FormHeader";
 import { auth } from "@/lib/auth";
 import { isAdminEmail } from "@/lib/admin";
+import { getFormSettings } from "@/lib/form-settings";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -12,10 +14,13 @@ export default async function HomePage() {
     redirect("/login");
   }
 
-  const questions = await prisma.question.findMany({
-    orderBy: { order: "asc" },
-    include: { options: { orderBy: { order: "asc" } } },
-  });
+  const [questions, settings] = await Promise.all([
+    prisma.question.findMany({
+      orderBy: { order: "asc" },
+      include: { options: { orderBy: { order: "asc" } } },
+    }),
+    getFormSettings(),
+  ]);
 
   const showAdminLink = isAdminEmail(session.user.email);
 
@@ -23,10 +28,9 @@ export default async function HomePage() {
     <main className="jas-page">
       <div className="jas-container">
         <p className="jas-eyebrow">TECH FORM</p>
-        <h1 className="jas-title">JAS Targets Requirements</h1>
+        <h1 className="jas-title">{settings.title}</h1>
         <p className="jas-subtitle">
-          Submit your technical requirements for JAS targets. Signed in as{" "}
-          <strong>{session.user.email}</strong>.
+          <FormSubtitle template={settings.subtitle} email={session.user.email} />
         </p>
 
         <div>

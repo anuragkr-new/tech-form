@@ -116,6 +116,16 @@ async function main() {
       },
     });
   }
+
+  await prisma.formSettings.upsert({
+    where: { id: "default" },
+    create: {
+      id: "default",
+      title: "JAS Targets Requirements",
+      subtitle: "Submit your technical requirements for JAS targets. Signed in as {email}.",
+    },
+    update: {},
+  });
 }
 
 main()

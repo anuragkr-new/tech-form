@@ -1,6 +1,7 @@
 import { AdminPanel } from "@/components/AdminPanel";
 import { auth } from "@/lib/auth";
 import { isAdminEmail } from "@/lib/admin";
+import { getFormSettings } from "@/lib/form-settings";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -15,7 +16,7 @@ export default async function AdminPage() {
     redirect("/");
   }
 
-  const [questions, submissions] = await Promise.all([
+  const [questions, submissions, settings] = await Promise.all([
     prisma.question.findMany({
       orderBy: { order: "asc" },
       include: { options: { orderBy: { order: "asc" } } },
@@ -28,6 +29,7 @@ export default async function AdminPage() {
         },
       },
     }),
+    getFormSettings(),
   ]);
 
   return (
@@ -51,6 +53,7 @@ export default async function AdminPage() {
 
         <AdminPanel
           initialQuestions={questions}
+          initialSettings={settings}
           initialSubmissions={submissions.map((submission) => ({
             id: submission.id,
             email: submission.email,
