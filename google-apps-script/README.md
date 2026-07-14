@@ -85,6 +85,22 @@ If you change `Code.gs`:
 
 The web app URL stays the same.
 
+## Troubleshooting
+
+**Sync says it worked but the sheet is empty**
+- Look for a tab named **Submissions** (not just Sheet1). The script writes there by default.
+- Or set `SHEET_NAME = ""` in `Code.gs` to write to the first sheet instead, then redeploy a **New version**.
+
+**Admin shows Unauthorized**
+- `WEBHOOK_SECRET` in `Code.gs` must exactly match `GOOGLE_SHEETS_WEBHOOK_SECRET` in the app env.
+- After changing the secret, save and deploy a **New version**.
+
+**Admin shows “did not confirm success” / Invalid payload**
+- The live deployment is still on an old script version. Paste the latest `Code.gs`, then **Deploy → Manage deployments → Edit → Version: New version → Deploy**.
+
+**Who has access**
+- Deployment access must be **Anyone** (not only your Google account), or the server-side POST will not reach `doPost`.
+
 ## Security notes
 
 - Keep `WEBHOOK_SECRET` and `GOOGLE_SHEETS_WEBHOOK_SECRET` identical and private.

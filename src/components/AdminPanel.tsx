@@ -93,6 +93,7 @@ export function AdminPanel({
   const [downloadingCsv, setDownloadingCsv] = useState(false);
   const [syncingSheets, setSyncingSheets] = useState(false);
   const [sheetsMessage, setSheetsMessage] = useState("");
+  const [sheetsMessageTone, setSheetsMessageTone] = useState<"success" | "error" | "">("");
 
   const normalizedCurrentEmail = currentUserEmail.trim().toLowerCase();
 
@@ -254,6 +255,7 @@ export function AdminPanel({
   async function downloadSubmissionsCsv() {
     setDownloadingCsv(true);
     setSheetsMessage("");
+    setSheetsMessageTone("");
 
     try {
       const response = await fetch("/api/submissions/export");
@@ -276,6 +278,7 @@ export function AdminPanel({
       link.remove();
       URL.revokeObjectURL(url);
     } catch (error) {
+      setSheetsMessageTone("error");
       setSheetsMessage(error instanceof Error ? error.message : "Failed to download CSV.");
     } finally {
       setDownloadingCsv(false);
@@ -285,6 +288,7 @@ export function AdminPanel({
   async function syncSubmissionsToSheet() {
     setSyncingSheets(true);
     setSheetsMessage("");
+    setSheetsMessageTone("");
 
     try {
       const response = await fetch("/api/submissions/sync-sheets", {
@@ -296,12 +300,15 @@ export function AdminPanel({
         throw new Error(data.error ?? "Failed to sync submissions to Google Sheets.");
       }
 
+      const synced = typeof data.synced === "number" ? data.synced : 0;
+      setSheetsMessageTone("success");
       setSheetsMessage(
-        data.synced === 0
-          ? "Google Sheet updated with headers only. No submissions to sync yet."
-          : `Synced ${data.synced} submission${data.synced === 1 ? "" : "s"} to Google Sheets.`,
+        synced === 0
+          ? "Synced 0 rows — sheet headers updated."
+          : `Synced ${synced} row${synced === 1 ? "" : "s"} to Google Sheets.`,
       );
     } catch (error) {
+      setSheetsMessageTone("error");
       setSheetsMessage(
         error instanceof Error ? error.message : "Failed to sync submissions to Google Sheets.",
       );
@@ -534,7 +541,15 @@ export function AdminPanel({
             </div>
           </div>
 
-          {sheetsMessage && <p className="jas-admin-message">{sheetsMessage}</p>}
+          {sheetsMessage && (
+            <p
+              className={`jas-admin-sync-status jas-admin-sync-status--${sheetsMessageTone || "info"}`}
+              role="status"
+              aria-live="polite"
+            >
+              {sheetsMessage}
+            </p>
+          )}
 
           {submissions.length === 0 ? (
             <p className="jas-admin-empty">No submissions yet.</p>

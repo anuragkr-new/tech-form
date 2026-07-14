@@ -3,9 +3,13 @@
  *
  * Receives new form submissions from the Tech Form app and appends them
  * as rows in the active spreadsheet.
+ *
+ * After editing: Deploy → Manage deployments → Edit → New version → Deploy
  */
 
 const WEBHOOK_SECRET = "REPLACE_WITH_A_LONG_RANDOM_SECRET";
+
+// Tab name for submissions. Leave blank ("") to use the spreadsheet's first sheet.
 const SHEET_NAME = "Submissions";
 
 function jsonResponse(payload) {
@@ -16,6 +20,11 @@ function jsonResponse(payload) {
 
 function getOrCreateSheet() {
   const spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
+
+  if (!SHEET_NAME) {
+    return spreadsheet.getSheets()[0];
+  }
+
   let sheet = spreadsheet.getSheetByName(SHEET_NAME);
 
   if (!sheet) {
@@ -30,9 +39,11 @@ function ensureHeaders(sheet, columns) {
     return;
   }
 
-  sheet.appendRow(columns.map(function (column) {
-    return column.label;
-  }));
+  sheet.appendRow(
+    columns.map(function (column) {
+      return column.label;
+    }),
+  );
 }
 
 function rowsFromPayload(payload) {
@@ -66,11 +77,12 @@ function replaceSheetData(sheet, columns, rows) {
 
   const values = rows.map(function (row) {
     return columns.map(function (column) {
-      return row[column.key] ?? "";
+      var value = row[column.key];
+      return value === undefined || value === null ? "" : String(value);
     });
   });
 
-  sheet.getRange(2, 1, values.length, header.length).setValues(values);
+  sheet.getRange(2, 1, values.length + 1, header.length).setValues(values);
 }
 
 function appendRows(sheet, columns, rows) {
@@ -78,7 +90,8 @@ function appendRows(sheet, columns, rows) {
 
   rows.forEach(function (row) {
     const values = columns.map(function (column) {
-      return row[column.key] ?? "";
+      var value = row[column.key];
+      return value === undefined || value === null ? "" : String(value);
     });
     sheet.appendRow(values);
   });
@@ -97,12 +110,12 @@ function doPost(e) {
     }
 
     if (!Array.isArray(payload.columns)) {
-      return jsonResponse({ error: "Invalid payload" });
+      return jsonResponse({ error: "Invalid payload: columns required" });
     }
 
     const rows = rowsFromPayload(payload);
     if (!rows) {
-      return jsonResponse({ error: "Invalid payload" });
+      return jsonResponse({ error: "Invalid payload: row or rows required" });
     }
 
     const sheet = getOrCreateSheet();
@@ -113,7 +126,14 @@ function doPost(e) {
       appendRows(sheet, payload.columns, rows);
     }
 
-    return jsonResponse({ success: true, synced: rows.length });
+    // Flush writes before returning so the client always sees persisted data
+    SpreadsheetApp.flush();
+
+    return jsonResponse({
+      success: true,
+      synced: rows.length,
+      sheet: sheet.getName(),
+    });
   } catch (error) {
     return jsonResponse({
       error: error && error.message ? error.message : "Unexpected error",
