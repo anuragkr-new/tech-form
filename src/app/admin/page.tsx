@@ -2,6 +2,7 @@ import { AdminPanel } from "@/components/AdminPanel";
 import { auth } from "@/lib/auth";
 import { getAdminUsers, isAdminEmail } from "@/lib/admin";
 import { getFormSettings } from "@/lib/form-settings";
+import { isGoogleSheetsEnabled } from "@/lib/integrations/google-sheets";
 import { prisma } from "@/lib/prisma";
 import Link from "next/link";
 import { redirect } from "next/navigation";
@@ -49,6 +50,7 @@ export default async function AdminPage() {
 
         <AdminPanel
           currentUserEmail={session.user.email}
+          googleSheetsEnabled={isGoogleSheetsEnabled()}
           initialQuestions={questions}
           initialSettings={settings}
           initialAdmins={admins}

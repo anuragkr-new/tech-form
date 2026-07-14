@@ -1,5 +1,9 @@
 import { auth } from "@/lib/auth";
 import { isAdminEmail } from "@/lib/admin";
+import {
+  appendSubmissionToSheet,
+  isGoogleSheetsEnabled,
+} from "@/lib/integrations/google-sheets";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
 
@@ -91,6 +95,12 @@ export async function POST(request: Request) {
       },
     },
   });
+
+  if (isGoogleSheetsEnabled()) {
+    void appendSubmissionToSheet(submission, questions).catch((error) => {
+      console.error("Failed to sync submission to Google Sheets:", error);
+    });
+  }
 
   return NextResponse.json({ submission }, { status: 201 });
 }

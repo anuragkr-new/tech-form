@@ -8,6 +8,7 @@ A configurable intake form for collecting JAS Targets requirements, with Google 
 - Dynamic form seeded from the JAS Targets CSV requirements
 - Admin panel to edit question text, add/remove dropdown options, and mark fields mandatory
 - Submission storage and admin review
+- Optional real-time sync of new submissions to Google Sheets
 
 ## Setup
 
@@ -41,6 +42,16 @@ npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000).
+
+## Google Sheets sync (optional)
+
+To push every new submission to a Google Sheet:
+
+1. Follow the setup guide in [`google-apps-script/README.md`](google-apps-script/README.md).
+2. Add `GOOGLE_SHEETS_WEBHOOK_URL` and `GOOGLE_SHEETS_WEBHOOK_SECRET` to your `.env`.
+3. Restart the app.
+
+New rows are appended automatically after each successful form submission. If the Sheets sync fails, the submission is still saved in the database.
 
 ## Scripts
 

@@ -9,6 +9,7 @@ type AdminPanelProps = {
   initialSettings: FormSettingsData;
   initialAdmins: AdminUserRecord[];
   currentUserEmail: string;
+  googleSheetsEnabled: boolean;
 };
 
 type EditableOption = {
@@ -60,6 +61,7 @@ export function AdminPanel({
   initialSettings,
   initialAdmins,
   currentUserEmail,
+  googleSheetsEnabled,
 }: AdminPanelProps) {
   const [tab, setTab] = useState<"questions" | "submissions" | "admins">("questions");
   const [questions, setQuestions] = useState<EditableQuestion[]>(
@@ -89,6 +91,8 @@ export function AdminPanel({
   const [removingAdminId, setRemovingAdminId] = useState<string | null>(null);
   const [adminsMessage, setAdminsMessage] = useState("");
   const [downloadingCsv, setDownloadingCsv] = useState(false);
+  const [syncingSheets, setSyncingSheets] = useState(false);
+  const [sheetsMessage, setSheetsMessage] = useState("");
 
   const normalizedCurrentEmail = currentUserEmail.trim().toLowerCase();
 
@@ -249,7 +253,7 @@ export function AdminPanel({
 
   async function downloadSubmissionsCsv() {
     setDownloadingCsv(true);
-    setMessage("");
+    setSheetsMessage("");
 
     try {
       const response = await fetch("/api/submissions/export");
@@ -272,9 +276,37 @@ export function AdminPanel({
       link.remove();
       URL.revokeObjectURL(url);
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Failed to download CSV.");
+      setSheetsMessage(error instanceof Error ? error.message : "Failed to download CSV.");
     } finally {
       setDownloadingCsv(false);
+    }
+  }
+
+  async function syncSubmissionsToSheet() {
+    setSyncingSheets(true);
+    setSheetsMessage("");
+
+    try {
+      const response = await fetch("/api/submissions/sync-sheets", {
+        method: "POST",
+      });
+
+      const data = await response.json();
+      if (!response.ok) {
+        throw new Error(data.error ?? "Failed to sync submissions to Google Sheets.");
+      }
+
+      setSheetsMessage(
+        data.synced === 0
+          ? "Google Sheet updated with headers only. No submissions to sync yet."
+          : `Synced ${data.synced} submission${data.synced === 1 ? "" : "s"} to Google Sheets.`,
+      );
+    } catch (error) {
+      setSheetsMessage(
+        error instanceof Error ? error.message : "Failed to sync submissions to Google Sheets.",
+      );
+    } finally {
+      setSyncingSheets(false);
     }
   }
 
@@ -474,17 +506,35 @@ export function AdminPanel({
         <>
           <div className="jas-admin-submissions-toolbar">
             <p className="jas-admin-block-desc" style={{ margin: 0 }}>
-              Export all submission data with every form column.
+              Export all submission data or replace the Google Sheet with the latest
+              submissions from the database.
             </p>
-            <button
-              type="button"
-              onClick={() => void downloadSubmissionsCsv()}
-              disabled={downloadingCsv}
-              className="jas-admin-btn-primary"
-            >
-              {downloadingCsv ? "Preparing CSV..." : "Download CSV"}
-            </button>
+            <div className="jas-admin-submissions-actions">
+              <button
+                type="button"
+                onClick={() => void syncSubmissionsToSheet()}
+                disabled={!googleSheetsEnabled || syncingSheets || downloadingCsv}
+                className="jas-admin-btn-secondary"
+                title={
+                  googleSheetsEnabled
+                    ? "Replace the Google Sheet with all submissions"
+                    : "Set GOOGLE_SHEETS_WEBHOOK_URL and GOOGLE_SHEETS_WEBHOOK_SECRET to enable"
+                }
+              >
+                {syncingSheets ? "Syncing..." : "Sync to Sheet"}
+              </button>
+              <button
+                type="button"
+                onClick={() => void downloadSubmissionsCsv()}
+                disabled={downloadingCsv || syncingSheets}
+                className="jas-admin-btn-primary"
+              >
+                {downloadingCsv ? "Preparing CSV..." : "Download CSV"}
+              </button>
+            </div>
           </div>
+
+          {sheetsMessage && <p className="jas-admin-message">{sheetsMessage}</p>}
 
           {submissions.length === 0 ? (
             <p className="jas-admin-empty">No submissions yet.</p>

@@ -744,3 +744,9 @@
   border-bottom: 1px solid oklch(0.93 0.004 255);
 }
 
+.jas-admin-submissions-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
